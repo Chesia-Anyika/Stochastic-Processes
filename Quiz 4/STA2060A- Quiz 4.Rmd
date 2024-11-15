@@ -1,0 +1,516 @@
+---
+title: "STA2060 - QUIZ 4"
+author: "Chesia Anyika"
+date: "2024-03-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries
+
+# Question 1 (10 Marks):
+
+**Suppose you are tasked with analyzing a Yule Furry process, denoted as {X(t), t ≥ 0}, within the R Studio environment. The process is characterized by a birth rate (λ), where X(0) = a = 5 represents the initial population size.**
+
+## Part 1:
+
+**Calculate the mean function and variance function of the Yule Furry process.**
+
+> For a Yule-Furry process with birth rate $\lambda$ and initial population $X(0) = a$ the distribution of $X(t)$ is negative binomial with the probability mass function:
+>
+> $$ P[X(t) = k] = 
+> P_k(t) = \binom{k - 1}{k-a}e^{-a\lambda t}(1-e^{-\lambda t})^{k-a}   
+>  $$
+>
+> For all $k = a, a+1,…,$
+
+The mean function of $X(t)$ is thus
+
+$$
+E(X(t)) = ae^{\lambda t}
+$$
+
+And the variance function of $X(t)$ is thus:
+
+$$
+Var(X(t)) = ae^{\lambda t}(e^{\lambda t} - 1)
+$$
+
+## Part 2:
+
+**For a specified time (t = 7 units), with birth rates λ = 0.2 and λ = 0.3:**
+
+-   **Determine the expected value** $E(X(7))$**.**
+
+-   **Compute the variance** $Var(X(7))$**.**
+
+-   **Calculate the probability** $P[X(7) = 20]$**.**
+
+First I defined generic functions in r for computing the expected value, variance and probability as follows:
+
+```{r}
+#define mean function
+mean.func1 <- function(a, lambda, t) {
+  a * exp(lambda * t)
+}
+
+#define variance function
+var.func1 <- function(a, lambda, t) {
+  a * exp(lambda * t) * (exp(lambda * t) - 1)
+}
+
+#define probability mass function P[X(t) = k]
+pmf1 <- function(k, a, lambda, t) {
+  choose(k - 1, k - a) * exp(-a * lambda * t) * (1 - exp(-lambda * t))^(k - a)
+}
+```
+
+I then defined my parameters as follows
+
+```{r}
+#define initial population size
+a = 5
+
+#define lambdas
+lambda1 = 0.2
+lambda2 = 0.3
+
+#define time
+t = 7
+
+#define number of individuals
+k = 20
+```
+
+I then computed the expected value, variance and probability given the defined parameters and functions as follows:
+
+### a) With $\lambda = 0.2$
+
+```{r}
+#compute mean
+mean1 <- mean.func1(a, lambda1, t)
+
+#compute variance
+var1 <- var.func1(a, lambda1, t)
+
+#compute probability
+prob1 <- pmf1(k, a, lambda1, t)
+
+cat('\n Expected Value:', mean1, '\n Variance:', var1, '\n Probability:', prob1 )
+```
+
+My computed results are:
+
+$$
+E(X(7)) = 20.276\\
+Var(X(7)) = 61.947 \\
+P[X(7) = 20] = 0.0506\\
+$$
+
+### b) With $\lambda = 0.3$
+
+```{r}
+#compute mean
+mean2 <- mean.func1(a, lambda2, t)
+
+#compute variance
+var2 <- var.func1(a, lambda2, t)
+
+#compute probability
+prob2 <- pmf1(k, a, lambda2, t)
+
+cat('\n Expected Value:', mean2, '\n Variance:', var2, '\n Probability:', prob2)
+```
+
+My computed results are:
+
+$$
+E(X(7)) = 40.831\\
+Var(X(7)) = 292.6\\
+P[X(7) = 10] = 0.0150\\
+$$
+
+## Part 3:
+
+**Generate 300 realizations of the Yule Furry process observed for a duration of T time units. Verify whether X(T) follows a geometric distribution through graphical analysis and appropriate statistical test procedures.**
+
+**Given Parameters:**
+
+**Initial population size (a) = 5**
+
+**Time value (T) = 7 units**
+
+**Birth rates (λ) = 0.2, 0.3**
+
+**Number of realizations = 300**
+
+First I defined my parameters:
+
+```{r}
+#define parameters
+lambda = c(0.2, 0.3)
+t = 7
+a = 5
+nsim =300
+```
+
+Then I simulated the linear birth process as follows:
+
+```{r}
+x=c() # population size at T
+for(m in 1:nsim)
+{
+set.seed(m); y=c(); sumy=0; i=1
+while(sumy<t)
+{
+y[i]=rexp(1,rate=i*lambda)
+sumy=sum(y); i=i+1
+}
+l=length(y); l; y=y[-l]; x[m]=length(y)+1
+}
+x; mean(x);var(x); e=exp(1); p=e^(-lambda*t); mu=1/p;mu
+var=(1-p)/p^2; var
+```
+
+I then used a histogram and boxplot to visualise the output as follows:
+
+```{r}
+# Visualization
+par(mfrow=c(1,2)) # Set up the plot layout
+
+# Histogram for population sizes at time T
+hist(x, main = "Population Sizes at Time T", xlab = "Population Size", col = "blue", border = "black")
+
+# Boxplot to compare distributions for both birth rates
+boxplot(x ~ rep(lambda, each = nsim/2), main = "Comparison of Birth Rates",
+        xlab = "Birth Rate (lambda)", ylab = "Population Size at Time T", col = c("red", "purple"))
+```
+
+**Interpretation**
+
+The histogram is right skewed, showing that for larger times there is a lower population size. Thus the population steadily decreases with time.
+
+\
+The box plot allows us to compare the effect of different birth rates, showing that a birth rate of 0.2 has higher interquartile range in terms of the population size than the birth rate of 0.3. Thus, the population size is less varied for a birth rate of 0.3.
+
+# **QUESTION 2 (10 MARKS):**
+
+## Part 1:
+
+**Consider a population with an initial count of individuals, denoted as (a = 6), at time (t = 0). The lifespan of each individual follows an exponential distribution with parameter (µ). Suppose (X(t)) represents the count of survivors in this population at time (t), and the evolution of (X(t)) over time (t) is modeled as a linear death process with a death rate of (µ).**
+
+**i. Compute the mean function and variance function of the linear death process.**
+
+> In the context of the linear death process starting with an initial population $X(0) = a \gt 0$ and a death rate $\mu$, the population at time $t$ follows a binomial distribution $X(t) ~ B(a,e^{- \mu t })$ with parameters $a$ and $e^{-\mu t}$.
+
+The mean function is given by:
+
+$$
+E(X(t)) = ae^{-\mu t}
+$$
+
+The variance function is given by:
+
+$$
+Var(X(t)) = ae^{-\mu t}(1-e^{-\mu t})
+$$
+
+## Part 2:
+
+**ii. For given death rates (µ = 0.3) and (µ = 0.4), calculate the expected population size and the variance of the population size at (t = 5). Additionally, determine the probability that at (t = 5), the population size is less than (4.3).**
+
+First I defined generic functions in r for computing the expected value, variance and probability as follows:
+
+```{r}
+#mean function
+mean.func2 <- function(a, mu, t) {
+  return(a * exp(-mu * t))
+}
+
+#variance function
+var.func2 <- function(a, mu, t) {
+  return(a * exp(-mu * t) * (1 - exp(-mu * t)))
+}
+
+#probability function
+pmf2 <- function(x, a, mu, t) {
+  p <- exp(-mu * t)
+  pmf <- choose(a, x) * p^x * (1 - p)^(a - x)
+  return(pmf)
+}
+```
+
+I then defined my parameters as follows:
+
+```{r}
+#define initial population size
+a = 6
+
+#define mus
+mu1 = 0.3
+mu2 = 0.4
+
+#define time
+t = 5
+
+#define the population range
+x = 0:4.3
+```
+
+I then computed the expected value, variance and probability given the defined parameters and functions as follows:
+
+### a) With $\mu = 0.3$
+
+```{r}
+#compute mean
+mean21 <- mean.func2(a, mu1, t)
+
+#compute variance
+var21 <- var.func2(a, mu1, t)
+
+#compute probability
+prob21 <- sum(pmf2(x, a, mu1, t))
+
+cat('\n Expected Value:', mean21, '\n Variance:', var21, '\n Probability:', prob21)
+```
+
+My computed values are:
+
+$$
+E(X(5)) = 1.338\\
+Var(X(5)) = 1.04\\
+P[X(5) < 4.3] = 0.997\\
+$$
+
+### b) With $\mu = 0.4$
+
+```{r}
+#compute mean
+mean22 <- mean.func2(a, mu2, t)
+
+#compute variance
+var22 <- var.func2(a, mu2, t)
+
+#compute probability
+prob22 <- sum(pmf2(x, a, mu2, t))
+
+cat('\n Expected Value:', mean22, '\n Variance:', var22, '\n Probability:', prob22)
+```
+
+$$
+E(X(5)) = 0.8120\\
+Var(X(5)) = 0.7021\\
+P[X(5) < 4.3] = 0.9998\\
+$$
+
+## Part 3:
+
+**iii. Further, generate 300 realizations of the linear death process observed for a duration of (T) time units and verify whether (X(T)) follows a binomial distribution through graphical analysis and appropriate statistical test procedures.**
+
+First I defined my parameters as follows
+
+```{r}
+mu=c(0.3,0.4)
+nsim = 200
+ini = 6
+t=5
+```
+
+Then I simulated the linear death process as follows:
+
+```{r}
+y=s=x=c();
+for(m in 1:nsim)
+{
+set.seed(m); sumy=0; s[1]=ini; i=1
+while(sumy<t)
+{
+y[i]=rexp(1,rate=s[i]*mu)
+s[i+1]=s[i]-1
+if(s[i]==0){break}
+else
+sumy=sum(y); i=i+1
+}
+l=length(y); y=y[-l]; x[m]=ini-length(y)
+}
+mean(x);var(x); e=exp(1);p=e^(-mu*t);p
+mu1=ini*p;mu1; var=ini*p*(1-p);var
+d=data.frame(table(factor(x, levels=0:max(x))));d
+```
+
+I then visualised the output using a histogram and a boxplot as follows:
+
+```{r}
+# Visualization
+par(mfrow=c(1,2)) # Set up the plot layout
+
+# Histogram for number of entities lost
+hist(x, main = "Number of Entities Lost", xlab = "Entities Lost", col = "blue", border = "black")
+
+# Boxplot to compare distributions for both mu values
+boxplot(x ~ rep(mu, each = nsim/2), main = "Comparison of mu Values",
+        xlab = "mu", ylab = "Entities Lost", col = c("red", "purple"))
+```
+
+**Interpretation**
+
+The histogram is right skewed, showing that for larger times there is a lower population size. Thus the population steadily decreases with time.
+
+The box plot allows us to compare the effect of different birth rates, showing that a both death rates 0.4 and 0.3 have similar interquartile range in terms of population size, thus have similar effects on the population size.
+
+# **QUESTION 3 (10 MARKS):**
+
+**In this task, you are required to analyze a linear birth-death process using R Studio. The birth and death rates are explicitly assigned, with a given time (t = 30) units. The birth rate (λ) is set to 1.8, and the death rate (µ) is set to 0.7. Initially, the process starts with one entity, (X(0) = 1).**
+
+## Part 1:
+
+**i. Calculate the mean and variance functions of the process at (t = 5).**
+
+In a Linear birth-death process where $X(0) = 1$, the mean function is
+
+$$
+E(t) =  \binom{e^{(\lambda - \mu)t} \; if \ \mu \neq \lambda }{1, \; if \ \mu = \lambda}
+$$
+
+This can be written as a generic function in r as follows:
+
+```{r}
+mean.func3 <- function(t, lambda, mu) {
+  if (lambda != mu) {
+    return(exp((lambda - mu) * t))
+  } else {
+    return(1)
+  }
+}
+```
+
+And thus computed as follows:
+
+```{r}
+#define parameters
+lambda3 = 1.8
+mu3 = 0.7
+t = 5
+
+#compute function
+meanq3 <- mean.func3(t, lambda3, mu3)
+
+#print result
+cat('Mean:', meanq3)
+```
+
+The variance function is given as
+
+$$
+V(t) =  \binom{\frac{\lambda + \mu}{\lambda - mu}e^{(\lambda - mu)t}(e^{(\lambda - mu)t} - 1) \; if \ \mu \neq \lambda }
+{2 \lambda t, \; if \ \mu = \lambda}
+$$
+
+This can be written as a generic function in r as follows:
+
+```{r}
+var.func3 <- function(t, lambda, mu) {
+  if (lambda != mu) {
+    return(((lambda + mu) / (lambda - mu)) * exp((lambda - mu) * t) * (exp((lambda - mu) * t) - 1))
+  } else {
+    return(2 * lambda * t)
+  }
+}
+```
+
+And thus computed in r as follows:
+
+```{r}
+#using the same t, lambda and mu defined above, compute the variance
+varq3 <- var.func3(t, lambda3, mu3)
+
+#print results
+cat('Variance: ', varq3)
+```
+
+The computed Mean and Variance are as follows:
+
+$$
+E(X(5)) = 244.6919\\
+Var(X(5)) = 135521.5
+$$
+
+## Part 2:
+
+**ii. Determine the probability of absorption into state 0.**
+
+The probability of absorption into state 0 is defined by the function
+
+$$
+\frac{\mu}{\lambda}
+$$
+
+I computed this as follows:
+
+```{r}
+mu = 0.7
+lambda = 1.8
+
+prob3 <- mu/lambda
+cat('Probability: ', prob3)
+```
+
+The computed result is $0.3889$
+
+## Part 3:
+
+**iii. Calculate the probability of extinction on or before time (t = 5).**
+
+**Given Parameters:**
+
+-   **Birth Rate (λ): 1.8**
+
+-   **Death Rate (µ): 0.7**
+
+-   **Initial State (X(0)): 1**
+
+-   **Time (t): 30 units**
+
+The Probability function is defined as:
+
+$$
+P_{0}(t) = \frac{\mu (1-e^{-(\lambda - \mu)t})}{\lambda - \mu e^{-(\lambda - \mu)t}}
+$$
+
+First, I defined this as a generic function in r
+
+```{r}
+P0 <- function(mu, lambda, t) {
+  numerator <- mu * (1 - exp(-(lambda - mu) * t))
+  denominator <- lambda - mu * exp(-(lambda - mu) * t)
+  return(numerator / denominator)
+}
+
+```
+
+I then defined my parameters as follows:
+
+```{r}
+#define lambda (birth rate)
+lambda = 1.8
+
+#define mu (death rate)
+mu = 0.7
+
+#define t
+t = 5
+```
+
+I then computed the probabilities as follows
+
+```{r}
+#compute probability
+P01 <- P0(mu, lambda, t)
+
+cat('Probability: ', P01)
+```
+
+The computed result is $P_0 (t) = 0.3879$

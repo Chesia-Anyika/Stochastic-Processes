@@ -1,0 +1,450 @@
+---
+title: "STA2060 - midsem"
+author: "Chesia Anyika"
+date: "2024-02-23"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Libraries
+
+```{r}
+#general data manipulation
+library(tidyverse)
+
+#markov chain related functions
+library(markovchain)
+
+#solve function
+library(MASS)
+
+#expm(function)
+library(expm)
+
+```
+
+# Question 1
+
+Suppose a data scientist at a business analytics company can be a trainee, a junior data scientist or a senior data scientist. Suppose the three levels are denoted by 1, 2, 3 respectively. If X(t)denotes the level of the person at time t, we assume that X(t) evolves as a Markov chain in continuous time. Suppose the mean sojourn times in the three states 1, 2 and 3 are 0.1, 0.2, 2 years respectively. It is given that a trainee is promoted to a junior data scientist with probability 2/3 and to a senior data scientist with probability 1/3. A junior data scientist leaves and is replaced by a trainee with probability 2/5 and is promoted to a senior data scientist with probability 3/5. A senior data scientist leaves and is replaced by a trainee with probability 1/4 and by a junior data scientist with probability 3/4. Find the long run average proportion of time a data scientist is a senior data scientist.
+
+## Execution
+
+To find the long run average proportion of time a data scientist is a senior data scientist in the system, we can use the generator matrix approach to describe the rates of transitions between states, and then solve for the stationary distribution of the chain.
+
+### Step 1: Construct a generator matrix
+
+> **Generator Matrices (Q)**
+>
+> The generator matrix of a Continuous Time Markov Chain (CTMC) has off-diagonal entries $q_{ij}$ that represent the rate of transitioning from state $i$ to state $j$. The diagonal entries $q{ii}$ are the negative sum of the off-diagonal entries, ensuring that each row sums to zero.
+
+Given the following transition probabilities:
+
+-   From 1 to 2: $\frac{2}{3}$, From 1 to 3: $\frac{1}{3}$
+
+-   From 2 to 1: $\frac{2}{5}$, From 2 to 3: $\frac{3}{5}$
+
+-   From 3 to 1: $\frac{1}{4}$, From 3 to 2: $\frac{3}{4}$
+
+Defined in R as follows:
+
+```{r}
+p12 <- 2/3
+p13 <- 1/3
+p21 <- 2/5
+p23 <- 3/5
+p31 <- 1/4
+p32 <- 3/4
+```
+
+And the following per year transition rates:
+
+> The transition rates are calculated by getting the reciprocal of the sojourn times per state.
+
+```{r}
+lambda1 <- 1/0.1
+lambda2 <- 1/0.2 
+lambda3 <- 1/2
+
+cat('lambda_1:', lambda1, '\n lambda_2:', lambda2, '\n lambda_3', lambda3)
+```
+
+-   $\lambda_1 = \frac{1}{0.1} = 10$
+
+-   $\lambda_2 = \frac{1}{0.2} = 5$
+
+-   $\lambda_3 = \frac{1}{2} = 0.5$
+
+I computed the off-diagonal entries by multiplying the leaving rate of each state by the transition probabilities.
+
+```{r}
+q12 <- lambda1*p12
+q13 <- lambda1*p13
+q21 <- lambda2*p21
+q23 <- lambda2*p23
+q31 <- lambda3*p31
+q32 <- lambda3*p32
+```
+
+I then computed the sum of each row of elements, and subtracted them from 0 to get the diagonal entries.
+
+```{r}
+q11 <- 0 - (q12 + q13)
+q22 <- 0 - (q21 + q23)
+q33 <- 0 - (q31 + q32)
+```
+
+With all the required entries, I constructed the Q matrix as follows:
+
+```{r}
+Q <- matrix(c(q11, q12, q13, q21, q22, q23, q31, q32, q33), 
+            byrow = TRUE, ncol = 3, nrow = 3, 
+            dimnames = list(c("T", "J", "S"), c("T", "J", "S")))
+
+#view the matrix
+Q
+```
+
+The Q matrix created is as follows:
+
+$$
+Q = \begin{bmatrix}
+ & \text{T} & \text{J} & \text{S} \\\text{T} & -10 & 6.67 & 3.33 \\\text{W} & 2 & -5 & 3 \\\text{I} & 0.125 & 0.375 & -0.5 \\\end{bmatrix}
+$$
+
+### Step 2: Compute the Transition Probability Matrix (P)
+
+> A **transition probability matrix** is a square matrix that describes the **probabilities of moving from one state to another in a Markov chain**. Each element $p_{ij}$ of the matrix represents the probability of transitioning from state $i$ to state $j$ in one step.
+
+To compute the P matrix using the Q matrix, we compute the exponential of the Q matrix. I computed this using the `expm()` function from the `expm` library.
+
+```{r}
+#compute exponential matrix
+P = expm(Q)
+
+#view exponential matrix
+P
+```
+
+The resulting P matrix is as follows:
+
+$$
+P = \begin{bmatrix}
+ & \text{T} & \text{J} & \text{S} \\\text{T} & 0.0374 & 0.1256 & 0.8370 \\\text{W} & 0.0377 & 0.1265 & 0.8358 \\\text{I} & 0.0314 & 0.1045 & 0.8641 \\\end{bmatrix}
+$$
+
+### Step 3: Compute the Steady State Distribution.
+
+> The **Steady State Distribution** of a generator matrix $Q$ for a CTMC is a vector $\pi = (\pi_1, \pi_2… \pi_n)$ that represents the long term probabilities of the system being in each state. It satisfies two key conditions:
+>
+> 1.  **Equilibrium Condition**: $\pi Q = 0$, indicating that at a steady state, the rate of entering any state equals the rate of leaving it.
+> 2.  **Normalisation Condition**: $\sum_{i=1}^n \pi_{i} = 1$, ensuring the steady state probabilities sum up to 1, making $\pi$ a valid probability distribution.
+
+To compute the steady state matrix I:
+
+1.  Used the `eigen()` function to compute the eigenvectors of the transpose of the P matrix. the stationary distribution is the eigenvector corresponding to the eigenvalue of 1, which is usually the first one.
+2.  Normalised the result.
+
+This is computed as follows:
+
+```{r}
+#compute eigenvectors and eigenvalues
+S <- eigen(t(P))$vectors[,1]
+
+#normalise the result
+S <- S/ sum(S)
+
+#View the result
+S
+```
+
+The stationary distribution computed is as follows:
+
+$$
+\pi = \begin{bmatrix}
+  \text{T} & \text{J} & \text{S} \\0.0323  & 0.1075 & 0.8602 \\\end{bmatrix}
+$$
+
+The third column of the steady state matrix represents the long run average proportion of time a data scientist is a senior data scientist, which is $0.8602$, or approximately $86.02\%$. This means that over the long term, a data scientist spends about $86.02\%$ of their time at each level (trainee, junior data scientist, senior data scientist) in this business analytics company.
+
+# Question 2
+
+**Suppose {X(t), t ≥ 0} is a continuous time Markov chain with state space S = {1, 2, 3, 4} and intensity matrix Q as given below.**
+
+$$
+Q = \begin{bmatrix}
+ & \text{S1} & \text{S2} & \text{S3} & \text{S4} \\\text{S1} & -3 & 2 & 0 &1 \\\text{S2} & 0 & -2 & 1/2 & 3/2 \\\text{S3} & 1 & 1 & -4 & 2 \\\ \text{S4} & 1 & 0 & 0 & -1 \\\end{bmatrix}
+$$
+
+**i. Find the parameters of the sojourn time random variables. What are the expected sojourn times in the 4 states?**
+
+> **An intensity matrix**, often denoted as Q, is a square matrix associated with a continuous-time Markov chain. It describes the rates of transition between states in the Markov chain. The elements of the intensity matrix Q are defined as follows:
+>
+> -   Diagonal elements $Q_{i,i}$ : The rate at which the system remains in state $i$.
+>
+> -   Off-diagonal elements $Q_{i,j}$ for $i ≠ j$ : The rate at which the system transitions from state $i$ to state $j$.
+
+As the diagonal elements represent the rates at which the system remains in each state, the rate parameters for the exponential distributions are as follows:
+
+```{r}
+# define the diagonal elements
+q11 <- -3
+q22 <- -2
+q33 <- -4
+q44 <- -1
+
+#compute lambda
+lambda1 <- -(q11)
+lambda2 <- -(q22)
+lambda3 <- -(q33)
+lambda4 <- -(q44)
+
+#print result
+cat('lambda_1:', lambda1, '\n lambda_2:', lambda2, '\n lambda_3', lambda3, '\n lambda_4:', lambda4)
+```
+
+$λ1 = -(-3) = 3$
+
+$λ2 = -(-2) = 2$
+
+$λ3 = -(-4) = 4$
+
+$λ4 = -(-1) = 1$
+
+The expected sojourn time (mean) in an exponential distribution is given by the reciprocal of the rate parameter. Therefore, I reciprocated the four $\lambda$ parameters as follows:
+
+```{r}
+s1 <- 1/lambda1
+s2 <- 1/lambda2
+s3 <- 1/lambda3
+s4 <- 1/lambda4
+
+cat('Sojourn time 1', s1, '\n Sojourn time 2', s2, '\n Sojourn 3', s3, '\n Sojourn 4', s4)
+```
+
+The sojourn times computed are:
+
+-   Expected time in S1 (state 1): $\frac{1}{λ1} = \frac{1}{3}$
+
+-   Expected time in S2 (state 2): $\frac{1}{λ2} = \frac{1}{2}$
+
+-   Expected time in S3 (state 3): $\frac{1}{λ3} = \frac{1}{4}$
+
+-   Expected time in S4 (state 4): $\frac{1}{λ4} = \frac{1}{1} = 1$
+
+**ii. Find the transition probability matrix of the embedded Markov chain.**
+
+Given the intensity matrix Q, the Probability matrix P can be computed by dividing each row by its respective rate parameter ( $\lambda$ ) then replacing the diagonal elements with 0s.
+
+```{r}
+#define off diagonal elements
+q12 <- 2/lambda1
+q13 <- 0/lambda1
+q14 <- 1/lambda1
+q21 <- 0/lambda2
+q23 <- (1/2)/lambda2
+q24 <- (3/2)/lambda2
+q31 <- 1/lambda3
+q32 <- 0/lambda3
+q34 <- 0/lambda3
+q41 <- 1/lambda4
+q42 <- 0/lambda4
+q43 <- 0/lambda4
+
+#define diagonal elements as 0
+q11 <- 0
+q22 <- 0
+q33 <- 0
+q44 <- 0
+
+#create the P matrix
+P <- matrix(c(q11, q12, q13, q14, q21, q22, q23, q24, q31, q32, q33, q34, q41, q42, q43, q44), byrow = TRUE, ncol = 4, nrow = 4)
+
+P
+```
+
+The matrix computed is as follows:
+
+$$
+P = 
+\begin{bmatrix}
+ & \text{S1} & \text{S2} & \text{S3} & \text{S4} \\\text{S1} & 0 & 0.67 & 0  & 0.33 \\\text{S2} & 0 & 0 & 0.25 & 0.75 \\\text{S3} & 0.25 & 0.25 & 0 & 0.5 \\\ \text{S4} & 1 & 0 & 0 & 0 \\\end{bmatrix}
+$$
+
+**iii. Examine if the continuous time Markov chain is irreducible.**
+
+A **Markov chain** is considered **reducible** if it has **two or more communication classes**, where states within each class can reach each other but not states in other classes.
+
+From the P matrix, we see that states $1 → 2 → 3 → 4 → 1$. Thus, all states communicate with each other. Hence, the embedded Markov chain is irreducible which implies that the Markov process is irreducible.
+
+**iv. Examine whether the states are transient or persistent.**
+
+On examining a Markov chain, we find that it is a **finite state irreducible chain**. This means that all its states are interconnected, and there are no isolated subsets of states that cannot communicate with each other. Consequently, **all the states in this Markov chain are persistent**.
+
+**v. Write the system of balance equations and solve it to get the long run distribution.**
+
+The system of balance equations is obtained by setting $PQ = 0$ where $P$ is the long-run distribution vector and $Q$ is the intensity matrix. Equating the rate of transition into the state to the rate of transition out of the state gives us the balance equations.
+
+Thus we set up the system of balance equations as follows:
+
+**For the first row of the matrix equation** $PQ=0PQ=0$:
+
+$−3P_1+2P_2+0P_3+1P_4=0$
+
+This gives us the equation: $3P_1=P_3+P_4​$
+
+**For the second row**:
+
+$0P1−2P2+12P3+32P4=0$
+
+This gives us the equation: $2P2=2P1+P3$​
+
+**For the third row**:
+
+$P_1+P_2−4P_3+2P_4=0$
+
+This gives us the equation: $4P_3= \frac{1}{2}P_2$​
+
+**For the fourth row**:
+
+$P1+0P2+0P3−P4=0P1​+0$
+
+This gives us the equation: $P4=P1+\frac{3}{2}P2+2P3$
+
+We create a function of these balance equations as follows:
+
+```{r}
+# Define the system of balance equations
+balance_eq <- function(P) {
+  eq1 <- 3 * P[1] - P[3] - P[4]
+  eq2 <- 2 * P[2] - 2 * P[1] - P[3]
+  eq3 <- 4 * P[3] - 0.5 * P[2]
+  eq4 <- P[4] - P[1] - 1.5 * P[2] - 2 * P[3]
+  return(c(eq1, eq2, eq3, eq4))
+}
+
+# Initial guesses for P1, P2, P3, P4
+initial_guess <- c(P1=0.25, P2=0.25, P3=0.25, P4=0.25)
+
+# Solve the system of equations
+solution <- multiroot(f = balance_eq, start = initial_guess)
+
+# Print the solution
+print(solution$root)
+
+```
+
+The long run distribution is as follows:
+
+$$
+D = 
+\begin{bmatrix}
+ & \text{P1} & \text{P2} & \text{P3} & \text{P4} \\\text{S1} & -0.2885 & -0.3077 & -0.0385  & -0.8269 \\\end{bmatrix}
+$$
+
+**vi. Find the stationary distribution. Is it the same as the long run distribution?**
+
+I computed this as follows:
+
+```{r}
+# Define the intensity matrix Q
+Q <- matrix(c(-3, 2, 0, 1,
+              0, -2, 1/2, 3/2,
+              1, 1, -4, 2,
+              1, 0, 0, -1), byrow = TRUE, nrow = 4)
+
+# Compute eigenvalues and eigenvectors of the transpose of Q
+eigen_info <- eigen(t(Q))
+
+# Identify the eigenvector corresponding to the eigenvalue closest to 0
+index_zero_eigenvalue <- which.min(abs(eigen_info$values))
+stationary_distribution <- eigen_info$vectors[, index_zero_eigenvalue]
+
+# Normalize the stationary distribution
+stationary_distribution <- stationary_distribution / sum(stationary_distribution)
+
+# Print the stationary distribution
+cat("The stationary distribution is:", stationary_distribution, "\n")
+```
+
+The resultant distribution is:
+
+$$
+\pi = \begin{bmatrix}0.1974 \\0.2105 \\0.0263 \\0.5658\end{bmatrix}
+$$
+
+**vii. Find the long run mean fraction of time system is in states 1, 2, 3, 4.**
+
+# Question 3
+
+Suppose {X(t), t ≥ 0} is a continuous time Markov chain with state space S = {1, 2, 3, 4} and
+
+intensity matrix Q as given below.
+
+$$
+Q = \begin{bmatrix}
+ & \text{S1} & \text{S2} & \text{S3} & \text{S4} \\\text{S1} & -3 & 2 & 0 &1 \\\text{S2} & 0 & -2 & 1/2 & 3/2 \\\text{S3} & 1 & 1 & -4 & 2 \\\ \text{S4} & 1 & 0 & 0 & -1 \\\end{bmatrix}
+$$
+
+**i. Obtain approximately the matrix P(t) of transition probability functions, for any three values of t.**
+
+The matrix $P(t)$ of transition probabilities can be obtained from the intensity matrix $Q$ using the formula $P(t) = e^{Qt}$, where \$e\^{Qt} is the matrix of exponentials of $Qt$. I computed this as follows:
+
+```{r}
+# Define the intensity matrix Q
+Q <- matrix(c(-3, 2, 0, 1,
+              0, -2, 1/2, 3/2,
+              1, 1, -4, 2,
+              1, 0, 0, -1), byrow = TRUE, nrow = 4)
+
+# Compute P(t) for t = 1, 5, 10
+t.vals <- c(1, 5, 10)
+list <- lapply(t.vals, function(t) expm(Q * t))
+
+# Print P(t) matrices
+names(list) <- paste("P(t) for t =", t.vals)
+list
+```
+
+**ii. Find P(t) for sufficiently large t till the rows are identical.**
+
+For a continuous-time Markov chain in the long run the chain reaches a steady state where the transition probabilities do not change over time. The matrix $P(t)$ for large t will show this, with each row of $P(t)$ becoming identical and equal to the stationary distribution π.
+
+Thus we can use the transition matrix $P(T)$ to converge a matrix where all rows are identical, representing the stationery distribution.
+
+```{r}
+# Compute P(t) for a large t, e.g., t = 100
+P_large_t <- expm(Q * 100)
+
+# Print P(t) for large t
+P_large_t
+```
+
+iii\. Solve the system of equations πQ = 0 under the condition that sum of the components of π is 1
+
+Using eigenvectors and eigenvalues, I computed this as follows:
+
+```{r}
+# Compute eigenvalues and eigenvectors of Q^T
+eigen_info <- eigen(t(Q))
+
+# Find the index of the eigenvalue that is closest to 0
+index_of_zero_eigenvalue <- which.min(abs(eigen_info$values))
+
+# Extract the corresponding eigenvector
+pi_vector <- eigen_info$vectors[, index_of_zero_eigenvalue]
+
+# Normalize the eigenvector so that its sum equals 1
+pi_normalized <- pi_vector / sum(pi_vector)
+
+# Print the normalized stationary distribution
+pi_normalized
+```
+
+The resultant stationary distribution is as follows:
+
+$$
+\pi = \begin{bmatrix}0.1974 \\0.2105 \\0.0263 \\0.5658\end{bmatrix}
+$$

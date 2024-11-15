@@ -1,0 +1,358 @@
+---
+title: "STA2060 - QUIZ 2"
+output: html_document
+date: "2024-02-05"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Library
+
+```{r}
+library(markovchain)
+library(diagram)
+```
+
+# Questions
+
+![](images/Question1.png)
+
+![](images/Question2.png)
+
+# Execution
+
+## Question 1
+
+I first defined the matrix $\begin{bmatrix} 0 & \frac{3}{4} & \frac{1}{4} & 0 \\ 0 & 0 & \frac{1}{2} & \frac{1}{2} \\ 0 & 0 & \frac{1}{2} & \frac{1}{2} \\ 1 & 0 & 0 & 0 \\ \end{bmatrix}$ in r using the `matrix()` function.
+
+```{r}
+#enter the matrix
+mat1 <- matrix(c(0, 3/4, 1/4, 0, 0, 1/2, 1/2, 0, 0, 0, 1/2, 1/2, 1, 0, 0, 0), byrow = TRUE, nrow = 4, ncol = 4)
+
+#View the matrix
+mat1
+```
+
+For a better interpretation of the markov chain, I visualised the markov chain represented by the given matrix. For that used the `plotmat()` function from the `diagram` library, for which I need to get transpose of the matrix in order to use.
+
+I obtain the transpose of mat1 as shown below:
+
+```{r}
+mat1_transpose <- t(mat1)
+mat1_transpose
+```
+
+I then visualised the markov chain as follows:
+
+```{r}
+plotmat(mat1_transpose, arr.length=0.3, arr.width=0.15, box.col="green", box.lwd=1, box.prop=0.5, box.size=0.1, box.type="circle", cex.txt=0.85, lwd=1, self.cex=0.3, self.shiftx=0.01, self.shifty=0.09)
+```
+
+I then set up a new markov chain object using the `new()` function.
+
+In terms of Object Oriented Programming, I am instantiating a specific instance of a Markov Chain that I can manipulate and interact with in my code.
+
+This is a requirement for using functions within the `markovchain` library, which I will be using in the next steps.
+
+```{r}
+#create a new markov chain object
+mChain1 <- new("markovchain", states=c("1","2","3","4"), transitionMatrix=mat1)
+
+mChain1
+```
+
+I then obtained the Steady State matrix of the given transition matrix.
+
+> The **Steady State Matrix** of a transition matrix in a markov chain represents the long term distribution of probabilities for being in each state. Mathematically, it is given by $\pi P = \pi$ where:
+>
+> -   $\pi$ is a row vector where each element represents the probability of being in a specific state in the long run
+>
+> -   $P$ is the transition matrix that defines the probabilities of moving from one state to another.
+
+I used the `steadyStates()` function from the `markovchain` library to get the steady state matrix.
+
+```{r}
+#get the steady state matrix
+mat1ss<- steadyStates(mChain1)
+
+#view the matrix
+mat1ss
+```
+
+I then defined the cost matrix $\begin{bmatrix} 125 \\ 0 \\ 0 \\ 75 \\ \end{bmatrix}$ such that **\$125** is associated with the overhauled class and **\$75** is associated with the inoperative class.
+
+```{r}
+# cost matrix
+costMatrix <- matrix(c(125, 0, 0, 75), byrow = TRUE, ncol = 1, nrow = 4)
+
+#View the cost matrix
+costMatrix
+```
+
+In order to get the total expected per day costs of maintenance, we can multiply the steady state matrix ( $\pi$ ) by the cost matrix ( $C$ ), and the resultant $1 \times 1$ matrix will be the result. This can be represented in the formula:
+
+$$
+\pi \times C = TotalExpectedCosts
+$$
+
+I thus multiplied the steady state matrix by the cost matrix as shown below:
+
+```{r}
+#calculate the expected cost per state
+expectedCost <- mat1ss %*% costMatrix
+
+#View the vector
+cat('The total expected per day cost of maintencance is', expectedCost)
+```
+
+The total expected cost of maintenance per day is obtained as $36.36364$
+
+## Question 2
+
+### i) Develop a transition matrix for patients from the historical data described above.
+
+The historical data on hope hospitals weekly ward transitions can be summarised as follows:
+
+|                | Outpatient | Ward | ICU |
+|----------------|------------|------|-----|
+| **Outpatient** | 85%        | 10%  | 5%  |
+| **Ward**       | not given  | 50%  | 10% |
+| **ICU**        | not given  | 50%  | 50% |
+
+As per the rules of markov chains, each of the transition matrix's row values must add up to a proportion of one. Thus the values for **Ward --\> Outpatient** and **ICU --\> Outpatient** can be found by obtaining the sum of the rows, and subtracting this sum from 100%, as follows:
+
+```{r}
+#Ward --> Outpatient
+w <- 100 - (50 + 10)
+
+#ICU --> Outpatient
+i <- 100 - (50 + 50)
+
+#print results
+cat('Ward --> Outpatient:', w, '\n ICU --> Outpatient:', i )
+```
+
+I then created the transition matrix given the historical data and these calculated values, in which O represents Outpatient, W represents Ward and I represents ICU.
+
+```{r}
+#define matrix of hope hospital historical data
+mat2 <- matrix(c(85, 10, 5, 40, 50, 10, 0, 50, 50), byrow = TRUE, nrow = 3, ncol = 3, 
+               dimnames = list(c('O', 'W', 'I'), c('O', 'W', 'I')))
+
+#View the matrix
+mat2
+```
+
+I then divided this matrix of percentages by 100, to obtain the elements as proportions ranging from 0 to 1.
+
+```{r}
+#divide matrix by 100
+mat2 <- mat2/100
+mat2
+```
+
+Thus the transition matrix ( $T1$ ) for patients is
+
+$$
+T1 = \begin{bmatrix}
+ & \text{O} & \text{W} & \text{I} \\\text{O} & 0.85 & 0.10 & 0.05 \\\text{W} & 0.40 & 0.50 & 0.10 \\\text{I} & 0.00 & 0.5 & 0.50 \\\end{bmatrix}
+$$
+
+I then visualised this transition matrix using the `plotmat()` function from the `diagram` library.
+
+```{r}
+#get the transpose of the matrix
+mat2_transpose <- t(mat2)
+
+#plot the markovchain
+plotmat(mat2_transpose, arr.length=0.3, arr.width=0.15, box.col="green", box.lwd=1, box.prop=0.5, box.size=0.1, box.type="circle", cex.txt=0.85, lwd=1, self.cex=0.3, self.shiftx=0.01, self.shifty=0.09)
+```
+
+### ii) Develop a transition matrix that reflects the proposal from the Board of Governors
+
+The percentage of patients transitioning between wards given the interventions proposed by the board of governors, as well as the repercussions stated by the hospital staff can be summarised as follows:
+
+|                | Outpatient | Ward      | ICU       |
+|----------------|------------|-----------|-----------|
+| **Outpatient** | Not given  | Not given | Not given |
+| **Ward**       | 30%        | Not given | 20%       |
+| **ICU**        | Not given  | 60%       | 40%       |
+
+As per the rules of markov chains, each row of the transition matrix should add up to a proportion of 1. Thus, we can find the percentage of patients that transition from **Ward --\> ICU** and **ICU --\> Outpatient** by subtracting the sum of the given row values from 100.
+
+```{r}
+#Ward --> ICU
+w2 <- 100 - (30 + 20)
+
+#ICU --> Outpatient
+i2 <- 100 - (60 + 40)
+
+#print results
+cat('Ward --> ICU:', w2, '\n ICU --> Outpatient:', i2 )
+```
+
+Assuming the transition from **Outpatient --\> Outpatient, Ward and ICU** are unaffected by the proposed changes of the governors, the resultant transition matrix can be defined as follows:
+
+```{r}
+#define matrix of board of drectors proposed changes
+mat3 <- matrix(c(85, 10, 5, 30, 50, 20, 0, 60, 40), byrow = TRUE, nrow = 3, ncol = 3, 
+               dimnames = list(c('O', 'W', 'I'), c('O', 'W', 'I')))
+
+#divide the matrix of percentages by 100
+mat3 <- mat3/100
+
+#View the matrix
+mat3
+```
+
+Thus the resultant matrix ( $T2$ )is
+
+$$
+T2 = \begin{bmatrix}
+ & \text{O} & \text{W} & \text{I} \\\text{O} & 0.85 & 0.10 & 0.05 \\\text{W} & 0.30 & 0.50 & 0.20 \\\text{I} & 0.00 & 0.6 & 0.40 \\\end{bmatrix}
+$$
+
+I then visualised the markov chain using the `plotmat()` function from the `diagram` library
+
+```{r}
+#get the transpose of the matrix
+mat3_transpose <- t(mat3)
+
+#plot the markovchain
+plotmat(mat3_transpose, arr.length=0.3, arr.width=0.15, box.col="green", box.lwd=1, box.prop=0.5, box.size=0.1, box.type="circle", cex.txt=0.85, lwd=1, self.cex=0.3, self.shiftx=0.01, self.shifty=0.09)
+```
+
+### iii) Using Markov chain analysis, will the policy advocated by the Board of governors actually save money?
+
+To determine this, I followed the following steps:
+
+#### **Step 1:**
+
+I defined the cost vector C, which details the current weekly cost per patient of keeping patients in the wards. The cost of outpatients is assumed to be 0 per person, as follows:
+
+$$
+C = \begin{bmatrix}
+OutpatientCost \\
+WardCost \\
+ICUCost \\
+\end{bmatrix} =
+\begin{bmatrix}
+0 \\
+500 \\
+1000 \\
+\end{bmatrix}
+$$
+
+I defined this vector in r as follows:
+
+```{r}
+#define the cost vector
+HopeCosts <- matrix(c(0, 500, 1000), byrow = TRUE, nrow = 3, ncol = 1)
+
+HopeCosts
+```
+
+#### **Step 2:**
+
+Calculate the steady state matrices $\pi{1}$ and $\pi{2}$ for the transition matrices $T1$ and $T2$ respectively. This will yield the long term distribution of probabilities for transitioning per hospital ward, given the intervention by the board of governors.
+
+I achieved this by first defining a new markov chain object for each matrix using the `new()` function.
+
+```{r}
+#define a new markov chain object for T1
+T1 <- new("markovchain", states = c("O", "W", "I"), transitionMatrix = mat2)
+
+#define a new markov chain object for T2
+T2 <- new("markovchain", states = c("O", "W", "I"), transitionMatrix = mat3)
+
+#view the markov chain objects
+T1
+T2
+```
+
+#### **Step 3:**
+
+Obtain the steady state matrices for $T1$ and $T2$, as defined below:
+
+$$
+\pi{i} *P = \pi{i} 
+$$
+
+> For $i$ in $v = {1,2}$
+
+I used the `steadyStates()` function from the `markovchain` library as follows:
+
+```{r}
+#steady state matrix for T1
+T1ss <- steadyStates(T1)
+
+#steady state matrix for T2
+T2ss <- steadyStates(T2)
+
+#view the matrices
+T1ss
+T2ss
+```
+
+The resultant steady state matrix is as follows:
+
+$$
+\pi1 = \begin{bmatrix}
+O & W & I \\
+0.6451613 & 0.2419355 & 0.1129032 \\
+\end{bmatrix}
+$$
+
+$$
+\pi2 = \begin{bmatrix}
+O & W & I \\
+0.5714286 & 0.2857143 & 0.1428571 \\
+\end{bmatrix}
+$$
+
+Comparing the two matrices, with the interventions applied:
+
+-   There is a long term increase in patients who transition to both the ICU and Wards
+
+-   There is a long term decrease in patients who transition to being Outpatients.
+
+#### **Step 5:**
+
+Multiply the steady state matrices $\pi_{1}$ and $\pi_{2}$ by the cost vector, to obtain the total long term cost of running the hospital.
+
+$$
+\pi_{i} \times C = TotalExpectedCost_{i}
+$$
+
+> For $i$ in $v = {1,2}$
+
+I implemented this as follows:
+
+```{r}
+#multiply T1 by cost vector
+CostT1 <- T1ss %*% HopeCosts
+
+#multiply T2 by cost vector
+CostT2 <- T2ss %*% HopeCosts
+
+#View the resulting vectors
+cat('The total long term cost without intervention is', CostT1, '\n The total long term cost with interventions is', CostT2)
+```
+
+The total long term cost without intervention is $233.871$
+
+The total long term cost with intervention is $285.7143$
+
+The difference between the two costs will give us the net savings or losses incurred by the hospital given the intervention, as defined below:
+
+$$
+Cost1 - Cost2 = Savings/Loss 
+$$
+
+```{r}
+CostT1 - CostT2
+```
+
+Thus the intervention of the board of directors would actually cost the hospital an additional $51.84332$ Dollars, and fails to realise their goal of saving money.
